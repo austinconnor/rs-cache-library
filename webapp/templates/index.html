@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuneScape Cache Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --rs-orange: #ff9800;
+            --rs-dark: #1e1e1e;
+            --rs-light: #f5f5f5;
+        }
+        
+        body {
+            background-color: var(--rs-dark);
+            color: var(--rs-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar {
+            background-color: rgba(30, 30, 30, 0.95);
+            border-bottom: 2px solid var(--rs-orange);
+        }
+        
+        .card {
+            background-color: rgba(50, 50, 50, 0.8);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card-header {
+            background-color: rgba(40, 40, 40, 0.9);
+            border-bottom: 1px solid var(--rs-orange);
+            font-weight: bold;
+            color: var(--rs-orange);
+        }
+        
+        .btn-primary {
+            background-color: var(--rs-orange);
+            border-color: var(--rs-orange);
+        }
+        
+        .btn-primary:hover {
+            background-color: #e68a00;
+            border-color: #e68a00;
+        }
+        
+        .result-container {
+            background-color: rgba(30, 30, 30, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid var(--rs-orange);
+        }
+        
+        .success {
+            border-left-color: #28a745;
+        }
+        
+        .error {
+            border-left-color: #dc3545;
+        }
+        
+        .json-display {
+            background-color: rgba(20, 20, 20, 0.9);
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .section-icon {
+            margin-right: 10px;
+            color: var(--rs-orange);
+        }
+        
+        .footer {
+            background-color: rgba(20, 20, 20, 0.95);
+            border-top: 1px solid var(--rs-orange);
+            padding: 20px 0;
+            margin-top: 40px;
+        }
+        
+        .api-status {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-connected {
+            background-color: #28a745;
+        }
+        
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-hdd-network section-icon"></i>
+                RuneScape Cache Manager
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#cache-operations">
+                            <i class="bi bi-folder"></i> Cache
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#file-operations">
+                            <i class="bi bi-file-earmark"></i> Files
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#archive-operations">
+                            <i class="bi bi-archive"></i> Archives
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#maintenance">
+                            <i class="bi bi-tools"></i> Maintenance
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- API Status Indicator -->
+    <div class="api-status" id="apiStatus">
+        <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+        <span id="statusText">Checking API...</span>
+    </div>
+    
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Welcome to the RuneScape Cache Manager. Use the forms below to interact with your RuneScape cache files.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cache Operations -->
+        <div class="row" id="cache-operations">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-hdd section-icon"></i>
+                        Cache Operations
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="cachePath" class="form-label">Cache Path</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="cachePath" placeholder="Enter path to cache directory" value="/app/cache">
+                                    <button class="btn btn-primary" type="button" onclick="initializeCache()">
+                                        <i class="bi bi-play-circle"></i> Initialize
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="rebuildPath" class="form-label">Rebuild Output Path</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="rebuildPath" placeholder="Enter output path" value="/app/cache_rebuild">
+                                    <button class="btn btn-warning" type="button" onclick="rebuildCache()">
+                                        <i class="bi bi-arrow-repeat"></i> Rebuild
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File Operations -->
+        <div class="row" id="file-operations">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-file-earmark section-icon"></i>
+                        File Operations
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="getFileIndex" class="form-label">Index ID</label>
+                                <input type="number" class="form-control" id="getFileIndex" value="19">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="getFileArchive" class="form-label">Archive ID</label>
+                                <input type="number" class="form-control" id="getFileArchive" value="116">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="getFileFile" class="form-label">File ID</label>
+                                <input type="number" class="form-control" id="getFileFile" value="94">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <button class="btn btn-success me-2" onclick="getFileData()">
+                                    <i class="bi bi-download"></i> Get File Data
+                                </button>
+                                <button class="btn btn-danger" onclick="removeFile()">
+                                    <i class="bi bi-trash"></i> Remove File
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <label for="putFileData" class="form-label">File Data (Base64)</label>
+                                <textarea class="form-control" id="putFileData" rows="3" placeholder="Enter base64-encoded data to write to cache"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="putFileXtea" class="form-label">XTEA Keys (comma-separated)</label>
+                                <input type="text" class="form-control" id="putFileXtea" placeholder="e.g., 123,456,789,012">
+                            </div>
+                            <div class="col-md-6 mb-3 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="putFileData()">
+                                    <i class="bi bi-upload"></i> Put File Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Archive Operations -->
+        <div class="row" id="archive-operations">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-archive section-icon"></i>
+                        Archive Operations
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="getArchiveIndex" class="form-label">Index ID</label>
+                                <input type="number" class="form-control" id="getArchiveIndex" value="19">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="getArchiveId" class="form-label">Archive ID</label>
+                                <input type="number" class="form-control" id="getArchiveId" value="116">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <button class="btn btn-success me-2" onclick="getArchiveData()">
+                                    <i class="bi bi-download"></i> Get Archive Data
+                                </button>
+                                <button class="btn btn-danger" onclick="removeArchive()">
+                                    <i class="bi bi-trash"></i> Remove Archive
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="putArchiveData" class="form-label">Archive Data (Base64)</label>
+                                <textarea class="form-control" id="putArchiveData" rows="3" placeholder="Enter base64-encoded data to write to archive"></textarea>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="addArchiveName" class="form-label">New Archive Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="addArchiveName" placeholder="Enter archive name">
+                                    <button class="btn btn-primary" type="button" onclick="addArchive()">
+                                        <i class="bi bi-plus-circle"></i> Add
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="putArchiveXtea" class="form-label">XTEA Keys (comma-separated)</label>
+                                <input type="text" class="form-control" id="putArchiveXtea" placeholder="e.g., 123,456,789,012">
+                            </div>
+                            <div class="col-md-6 mb-3 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="putArchiveData()">
+                                    <i class="bi bi-upload"></i> Put Archive Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Maintenance Operations -->
+        <div class="row" id="maintenance">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-tools section-icon"></i>
+                        Maintenance Operations
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="updateIndexId" class="form-label">Index ID</label>
+                                <input type="number" class="form-control" id="updateIndexId" value="19">
+                            </div>
+                            <div class="col-md-6 mb-3 d-flex align-items-end">
+                                <button class="btn btn-warning w-100" onclick="updateIndex()">
+                                    <i class="bi bi-arrow-up-circle"></i> Update Index
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>Warning:</strong> Maintenance operations can modify or delete cache data. Use with caution.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Display -->
+        <div class="row">
+            <div class="col-12">
+                <div id="resultContainer" style="display: none;">
+                    <h4><i class="bi bi-terminal"></i> Operation Results</h4>
+                    <div id="resultContent" class="result-container">
+                        <div id="resultData" class="json-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="footer mt-auto py-3">
+        <div class="container text-center">
+            <span class="text-muted">RuneScape Cache Manager &copy; 2025 | Built with Flask and Bootstrap</span>
+        </div>
+    </footer>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Check API status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkApiStatus();
+        });
+        
+        function showResult(message, isError = false) {
+            const resultContainer = document.getElementById("resultContainer");
+            const resultData = document.getElementById("resultData");
+            const resultContent = document.getElementById("resultContent");
+            
+            resultData.textContent = typeof message === 'object' ? JSON.stringify(message, null, 2) : message;
+            resultContainer.style.display = "block";
+            
+            // Update styling based on result type
+            resultContent.className = "result-container " + (isError ? "error" : "success");
+            
+            // Scroll to results
+            resultContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function checkApiStatus() {
+            const statusIndicator = document.getElementById("statusIndicator");
+            const statusText = document.getElementById("statusText");
+            
+            fetch("/api/health")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "healthy") {
+                        statusIndicator.className = "status-indicator status-connected";
+                        statusText.textContent = "API Connected";
+                    } else {
+                        statusIndicator.className = "status-indicator status-disconnected";
+                        statusText.textContent = "API Unhealthy";
+                    }
+                })
+                .catch(error => {
+                    statusIndicator.className = "status-indicator status-disconnected";
+                    statusText.textContent = "API Disconnected";
+                });
+        }
+        
+        function initializeCache() {
+            const path = document.getElementById("cachePath").value;
+            fetch("/api/initialize", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({path: path})
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function getFileData() {
+            const index = document.getElementById("getFileIndex").value;
+            const archive = document.getElementById("getFileArchive").value;
+            const file = document.getElementById("getFileFile").value;
+            
+            fetch(`/api/data/${index}/${archive}/${file}`)
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function putFileData() {
+            const index = document.getElementById("getFileIndex").value;
+            const archive = document.getElementById("getFileArchive").value;
+            const file = document.getElementById("getFileFile").value;
+            const data = document.getElementById("putFileData").value;
+            const xtea = document.getElementById("putFileXtea").value;
+            
+            const payload = {data: data};
+            if (xtea) payload.xtea = xtea;
+            
+            fetch(`/api/put/${index}/${archive}/${file}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function removeFile() {
+            const index = document.getElementById("getFileIndex").value;
+            const archive = document.getElementById("getFileArchive").value;
+            const file = document.getElementById("getFileFile").value;
+            
+            fetch(`/api/remove/${index}/${archive}/${file}`, {
+                method: "DELETE"
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function getArchiveData() {
+            const index = document.getElementById("getArchiveIndex").value;
+            const archive = document.getElementById("getArchiveId").value;
+            
+            fetch(`/api/data/${index}/${archive}`)
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function putArchiveData() {
+            const index = document.getElementById("getArchiveIndex").value;
+            const archive = document.getElementById("getArchiveId").value;
+            const data = document.getElementById("putArchiveData").value;
+            const xtea = document.getElementById("putArchiveXtea").value;
+            
+            const payload = {data: data};
+            if (xtea) payload.xtea = xtea;
+            
+            fetch(`/api/put/${index}/${archive}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function removeArchive() {
+            const index = document.getElementById("getArchiveIndex").value;
+            const archive = document.getElementById("getArchiveId").value;
+            
+            fetch(`/api/remove/${index}/${archive}`, {
+                method: "DELETE"
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function updateIndex() {
+            const index = document.getElementById("updateIndexId").value;
+            
+            fetch(`/api/update/${index}`, {
+                method: "POST"
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function addArchive() {
+            const index = document.getElementById("getArchiveIndex").value;
+            const name = document.getElementById("addArchiveName").value;
+            
+            fetch(`/api/add_archive/${index}`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({name: name})
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+        
+        function rebuildCache() {
+            const path = document.getElementById("rebuildPath").value;
+            
+            fetch(`/api/rebuild`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({output_path: path})
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                showResult("Error: " + error, true);
+            });
+        }
+    </script>
+</body>
+</html>

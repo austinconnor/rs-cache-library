@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  cache-api:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./cache:/app/cache
+    environment:
+      - FLASK_ENV=development
+
+  webapp:
+    build: ./webapp
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=development
+    depends_on:
+      - cache-api
+    volumes:
+      - ./webapp:/app
